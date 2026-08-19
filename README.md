@@ -17,9 +17,9 @@
 
 ### 方式二：自行打包（适合有 Python 环境的开发者）
 
-需要下载blue_screen_query.py+bluescreen_data.json+build_exe.bat
+需要下载blue_screen_query.py+bluescreen_data.json+build_exe.bat，文件尽量下载到同一个文件夹内
 
-为了减少错误出现率，建议记事本打开bat文件,复制同样的文件名,复制同样的代码,然后编码选择AHSI，确定保存即可做成一键打包成打包，需要确定三个文件在同一个文件夹下，才可以双击运行bat,等待自动打包完成后在 dist 目录下找到 BlueScreenQuery.exe，双击即可运行。
+为了减少错误出现率，建议先把bat的代码和文件名，包括文件后缀！！！复制下来，然后在下载好的文件夹目录下新建文本文档，先粘贴复制好的代码，然后[另存为],这时文件重命名再粘贴文件名，包括文件后缀！！！，编码选择AHSI，确定保存即可做成一键打包成打包，需要确定三个文件在同一个文件夹下，才可以双击运行bat,等待自动打包完成后在 dist 目录下找到 BlueScreenQuery.exe，双击即可运行。
 
 ## 使用方法
 
