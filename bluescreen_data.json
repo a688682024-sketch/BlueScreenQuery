@@ -1,0 +1,737 @@
+[
+    {
+        "id": 1,
+        "code": "0x00000001",
+        "name": "APC_INDEX_MISMATCH",
+        "meaning": "APC（异步过程调用）索引不匹配，即系统内核在处理中断请求时，APC的嵌套层级发生了混乱。就像交响乐团里第二小提琴手本该在第三乐章入场，却在第一乐章就拉响了弓弦，导致整个演奏节奏崩溃。从技术角度看，这通常是由于驱动程序或文件系统过滤器在错误的IRQL（中断请求级别）下调用了KeEnterCriticalRegion或KeLeaveCriticalRegion，导致APC状态计数器失衡。常见诱因包括网卡驱动、存储驱动或反病毒软件的过滤驱动存在同步逻辑缺陷。",
+        "solution": "首先，使用管理员权限打开命令提示符，执行 `sfc /scannow` 扫描并修复系统文件完整性。其次，更新所有硬件驱动程序，尤其关注网卡、芯片组和存储控制器驱动，建议从硬件厂商官网获取最新WHQL签名版本。若问题出现在安装新软件后，请卸载该软件并观察。可使用Driver Verifier（驱动程序验证器）对第三方驱动进行压力测试，定位具体肇事驱动。在CMD中运行 `verifier /standard /all` 后重启，系统会在蓝屏时记录故障驱动名称。最后，检查近期Windows更新，如有可疑补丁可尝试卸载。"
+    },
+    {
+        "id": 2,
+        "code": "0x0000000A",
+        "name": "IRQL_NOT_LESS_OR_EQUAL",
+        "meaning": "某个内核模式驱动程序或系统进程试图在过高的IRQL（中断请求级别）下访问可分页内存，或者访问了无效的内存地址。想象一下，一个消防员在火场最高警戒级别时却试图翻阅一本放在普通书架上的手册——系统不允许这种越级操作。技术上，这意味着代码在DISPATCH_LEVEL或更高级别上引用了分页内存，而分页内存在该级别下可能已被换出到磁盘，导致页面错误。最常见的原因是网卡驱动、显卡驱动或USB控制器驱动存在缺陷，也可能是内存条物理损坏导致地址映射错误。",
+        "solution": "首先更新所有驱动程序，优先级：网卡 > 显卡 > 芯片组 > 声卡。使用DDU（Display Driver Uninstaller）在安全模式下彻底卸载显卡驱动后安装最新稳定版。运行Windows内存诊断工具（mdsched.exe）检查内存条是否存在物理坏块。在BIOS中暂时禁用“快速启动”和“XMP”内存超频配置。若问题间歇性出现，请检查CPU是否过热或超频过度，恢复默认频率。最后，在CMD中执行 `chkdsk c: /f` 修复磁盘错误，并运行 `DISM /Online /Cleanup-Image /RestoreHealth` 修复系统映像。"
+    },
+    {
+        "id": 3,
+        "code": "0x0000001E",
+        "name": "KMODE_EXCEPTION_NOT_HANDLED",
+        "meaning": "内核模式程序抛出了一个异常，但没有相应的异常处理程序来捕获它。就像工厂自动化流水线上的机械臂突然卡住，但中央控制系统却没有预设任何故障处理脚本，导致整条产线停机。技术本质是CPU在执行内核代码时遇到了无效指令、除零错误或访问违例，而该代码段并未注册结构化异常处理（SEH）。常见于有缺陷的设备驱动（尤其是显卡和存储驱动）、损坏的系统文件或不兼容的硬件。当错误地址指向某个特定驱动文件（如nvlddmkm.sys）时，可快速定位元凶。",
+        "solution": "记录蓝屏信息中停止代码下方的模块名称（如xxx.sys）。进入安全模式，卸载或回滚该驱动至上一版本。使用系统还原点恢复到蓝屏发生前的状态。运行 `sfc /scannow` 和 `DISM` 修复系统文件。如果无法确定具体驱动，执行Driver Verifier对所有第三方驱动进行验证（`verifier /standard /all`）。检查最近安装的硬件，移除后测试。更新BIOS/UEFI固件到最新版本，因为某些主板微码缺陷也会引发此错误。"
+    },
+    {
+        "id": 4,
+        "code": "0x00000024",
+        "name": "NTFS_FILE_SYSTEM",
+        "meaning": "NTFS文件系统驱动程序（ntfs.sys）报告了一个严重错误，通常意味着磁盘上的文件系统元数据已损坏或存储栈存在缺陷。好比图书馆的索引卡片柜被撞翻，所有书籍的摆放位置信息都乱了。技术上看，可能是磁盘坏道、SATA/SCSI控制器驱动Bug、或磁盘缓存数据未正确刷写导致卷结构不一致。此外，超频导致的内存不稳定也可能使文件系统缓存数据出错，进而引发此蓝屏。",
+        "solution": "以管理员身份运行CMD，执行 `chkdsk c: /f /r`，该命令会锁定卷并修复文件系统错误，同时扫描坏道。完成后重启，让chkdsk在下次启动时运行。更新主板芯片组驱动和存储控制器驱动（如Intel RST、AMD StoreMI）。检查SATA/NVMe数据线是否松动，更换高质量线缆。运行CrystalDiskInfo查看硬盘SMART状态，若有黄/红警告请立即备份数据并更换硬盘。若内存超频，请恢复默认频率并运行MemTest86验证稳定性。"
+    },
+    {
+        "id": 5,
+        "code": "0x0000002E",
+        "name": "DATA_BUS_ERROR",
+        "meaning": "系统数据总线检测到奇偶校验错误或ECC校验失败，通常是硬件层面的严重问题。可以理解为电脑内部的高速公路发生了致命交通事故——数据在传输过程中被篡改或丢失。技术原因包括：内存条物理损坏或金手指氧化、主板内存插槽接触不良、CPU内存控制器缺陷、或电源纹波过大导致信号失真。此错误几乎不可能由软件引起，属于纯硬件故障范畴。",
+        "solution": "首先关机，断开电源，打开机箱重新插拔所有内存条，并用橡皮擦擦拭金手指。如果有多条内存，逐条单插测试，找出故障条。运行MemTest86+进行至少4小时全覆盖测试。检查主板电容是否有鼓包或漏液现象。更新BIOS到最新版本，因为某些主板早期版本存在内存兼容性Bug。使用功率计测量电源实际输出，确保12V/5V电压波动在±5%以内。若CPU超频，恢复默认频率。如问题依旧，建议替换法依次排查内存、主板、CPU。"
+    },
+    {
+        "id": 6,
+        "code": "0x0000003B",
+        "name": "SYSTEM_SERVICE_EXCEPTION",
+        "meaning": "一个系统服务（如win32k.sys、dxgkrnl.sys）在执行过程中触发了异常且未被处理。好比政府部门的某个办事窗口突然崩溃，导致整个行政大厅运转停滞。技术上看，这通常是显卡驱动、触摸板驱动或第三方安全软件在内核态调用了非法参数或访问了无效内存。Windows 10/11中此错误常与显卡驱动Bug有关，尤其是启用了硬件加速GPU调度（HAGS）后更容易触发。",
+        "solution": "进入安全模式，使用DDU工具彻底卸载显卡驱动，然后安装最新WHQL版本（非Beta）。在Windows设置中关闭“硬件加速GPU计划”和“可变刷新率”。暂时禁用第三方杀毒软件，特别是Avast、McAfee等带有内核过滤驱动的产品。运行 `sfc /scannow` 和 `DISM` 修复系统文件。检查近期安装的Windows更新，若有KBxxxxxx补丁可尝试卸载。最后，在CMD中执行 `net stop wscsvc` 临时关闭安全中心服务以排除干扰。"
+    },
+    {
+        "id": 7,
+        "code": "0x0000003F",
+        "name": "NO_MORE_SYSTEM_PTES",
+        "meaning": "系统页表项（PTE）池已耗尽，无法再为内存映射I/O或进程地址空间分配新的页表。就像仓库里的货架全部占满，新到的货物无处堆放。技术上是由于某个驱动程序或应用程序存在内存泄漏，持续申请PTE而不释放，最终耗尽了系统默认的PTE配额（通常为物理内存的1/512）。常见于有缺陷的显卡驱动（频繁分配GPU显存映射）、网络监控软件或数据库服务。",
+        "solution": "右键“此电脑”→“属性”→“高级系统设置”→“性能设置”→“高级”→“虚拟内存”，将初始大小和最大值均设为物理内存的1.5倍，并确保位于系统盘。更新显卡驱动至最新版，因为它是PTE消耗大户。使用PoolMon（Windows调试工具）监控PTE使用情况，定位泄漏源。在注册表 `HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management` 中增加 `SystemPages` 键值（DWORD，十进制设为物理内存MB数×4）。若物理内存≤4GB，建议升级内存。"
+    },
+    {
+        "id": 8,
+        "code": "0x00000044",
+        "name": "MULTIPLE_IRP_COMPLETE_REQUESTS",
+        "meaning": "同一个I/O请求包（IRP）被完成了多次，违反了Windows I/O管理器的一次性完成规则。好比一张快递单被反复签收多次，物流系统必然混乱。技术原因是驱动程序在完成IRP后又错误地再次调用了IoCompleteRequest，或者多个驱动组件同时认为自己对同一IRP拥有所有权。这通常暴露了驱动程序中的竞态条件（Race Condition）或引用计数错误，常见于USB、音频或存储类驱动。",
+        "solution": "此错误几乎总是由第三方驱动程序Bug引起。首先更新所有硬件驱动，尤其是USB控制器、声卡和蓝牙驱动。使用Driver Verifier对非微软驱动施加压力测试：`verifier /flags 0x209BB /all` 后重启，系统将在蓝屏时指出违规驱动。如果近期安装了新硬件，请卸载其驱动并观察。运行系统文件检查工具 `sfc /scannow`。如果问题无法定位，可尝试系统还原到正常状态，或重置Windows（保留个人文件）。"
+    },
+    {
+        "id": 9,
+        "code": "0x0000004E",
+        "name": "PFN_LIST_CORRUPT",
+        "meaning": "内存管理器的页帧号（PFN）数据库被损坏，导致系统无法正确跟踪物理内存页面的状态。如同图书馆的藏书索引卡片被恶意打乱，管理员再也找不到任何一本书的位置。技术上看，这通常是由驱动程序错误地修改了PFN条目（例如在释放内存后仍写入该页），或内存硬件故障导致数据错误。常见于有缺陷的显卡驱动、存储驱动或超频不稳定的内存。",
+        "solution": "首先运行Windows内存诊断工具（mdsched.exe）进行标准测试，若发现问题则更换内存条。更新显卡驱动和存储驱动至最新版。如果CPU或内存超频，请恢复默认频率。运行 `chkdsk c: /f` 检查磁盘错误。使用Driver Verifier对第三方驱动进行验证（`verifier /standard /all`）。在注册表中检查 `HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management` 下的 `ClearPageFileAtShutdown` 是否设置为1（开启），这有助于减少PFN损坏风险。"
+    },
+    {
+        "id": 10,
+        "code": "0x00000050",
+        "name": "PAGE_FAULT_IN_NONPAGED_AREA",
+        "meaning": "系统试图访问一个理论上应在非分页内存中的地址，但该地址却引发了页面错误。好比你去一个标注为“永久展厅”的房间，却发现里面的展品被搬空了——这不应该发生。技术本质是驱动程序或内核代码引用了一个指向已释放内存的悬空指针（Dangling Pointer），或者硬件损坏导致内存内容被篡改。常见于内存条物理故障、显卡驱动Bug或文件系统过滤器驱动错误。",
+        "solution": "首先使用橡皮擦清洁内存条金手指并重新插紧。运行MemTest86+至少一个完整循环（Pass）。更新所有驱动程序，尤其显卡和网卡。在BIOS中关闭内存XMP/DOCP，以JEDEC标准频率运行。运行 `chkdsk c: /f` 检查磁盘。使用Driver Verifier定位问题驱动（`verifier /standard /all`）。如果错误信息中包含 `ntoskrnl.exe` 且无其他驱动线索，请检查Windows更新并安装最新累积补丁。最后，尝试禁用快速启动：`powercfg /h off`。"
+    },
+    {
+        "id": 11,
+        "code": "0x00000051",
+        "name": "REGISTRY_ERROR",
+        "meaning": "Windows注册表数据库在读/写过程中遇到了I/O错误，导致系统配置信息无法正常访问。就像医院丢失了患者的电子病历档案，医生无法对症下药。技术原因包括：注册表蜂巢文件（SAM、SOFTWARE、SYSTEM等）所在卷的文件系统损坏、磁盘坏道、或注册表日志文件（LOG）与主文件不一致。突然断电、强制关机或硬盘即将失效是常见诱因。",
+        "solution": "尝试使用“最后一次正确配置”启动（开机按F8）。若能进入安全模式，运行 `sfc /scannow` 和 `DISM /Online /Cleanup-Image /RestoreHealth`。在CMD中执行 `chkdsk c: /f` 修复磁盘错误。如果注册表损坏严重，可从 `C:\\Windows\\System32\\config\\RegBack` 备份目录恢复（需PE环境）。使用系统还原点回滚。若以上均无效，建议使用Windows安装介质启动进入“修复计算机”→“命令提示符”，执行 `copy c:\\windows\\system32\\config\\RegBack\\* c:\\windows\\system32\\config\\` 覆盖损坏文件。"
+    },
+    {
+        "id": 12,
+        "code": "0x00000058",
+        "name": "FTDISK_INTERNAL_ERROR",
+        "meaning": "容错磁盘驱动程序（ftdisk.sys）内部状态不一致，通常与动态磁盘、卷影副本或RAID配置有关。好比合唱团里有人唱错了谱子，指挥发现声部平衡完全失调。技术上看，这可能是动态磁盘的数据库（LDM）损坏、RAID阵列成员丢失、或卷装入点（Mount Point）配置错误。常见于使用了Windows软RAID或动态磁盘的用户，在磁盘迁移或系统升级后触发。",
+        "solution": "打开磁盘管理（diskmgmt.msc），检查是否有“丢失”或“脱机”的动态磁盘。右键单击脱机磁盘选择“联机”。如果动态磁盘状态为“无效”，请尝试使用第三方工具（如TestDisk）恢复LDM元数据。在CMD中执行 `diskpart` → `list volume` → `select volume X` → `attributes volume clear hidden`。对于硬件RAID，进入RAID BIOS检查阵列状态，重建降级的阵列。更新主板芯片组驱动和RAID控制器固件。如果数据不重要，可将动态磁盘转换为基本磁盘。"
+    },
+    {
+        "id": 13,
+        "code": "0x0000005A",
+        "name": "CRITICAL_SERVICE_FAILED",
+        "meaning": "Windows启动过程中，一个被标记为关键（Critical）的系统服务未能正常启动，导致系统无法完成引导。就像飞机的发动机点火系统故障，飞机根本无法起飞。技术原因包括：服务对应的可执行文件损坏或缺失、服务依赖的驱动程序未加载、注册表中的服务配置项（如Start值）被错误修改。常见于恶意软件破坏、系统更新中断或注册表清理工具误操作。",
+        "solution": "使用Windows安装介质启动，进入“修复计算机”→“疑难解答”→“高级选项”→“启动修复”。若无效，进入命令提示符，执行 `sfc /scannow /offbootdir=C:\\ /offwindir=C:\\Windows`。检查关键服务状态：`sc query` 查看服务列表，重点关注 `TrustedInstaller`、`RpcSs`、`LanmanServer` 等。使用 `bcdedit /enum` 查看引导配置，确保 `resumeobject` 和 `osdevice` 正确。若怀疑注册表损坏，从 `C:\\Windows\\System32\\config\\RegBack` 恢复。最后，尝试系统还原或重置此电脑。"
+    },
+    {
+        "id": 14,
+        "code": "0x00000073",
+        "name": "CONFIG_LIST_FAILED",
+        "meaning": "注册表配置列表（Configuration List）验证失败，表明注册表蜂巢文件的结构已损坏。如同酒店前台登记簿的页码被撕毁，无法确认客人信息。技术上是由于注册表文件（如SYSTEM、SOFTWARE）的校验和（Checksum）与实际内容不符，或蜂巢的元数据块（HBIN）被破坏。通常由磁盘坏道、突然断电或注册表碎片整理工具误操作引起。",
+        "solution": "使用Windows安装介质启动，进入命令提示符。执行 `chkdsk c: /f` 修复底层磁盘错误。然后尝试从备份恢复注册表：`copy c:\\windows\\system32\\config\\RegBack\\system c:\\windows\\system32\\config\\system`（对其他蜂巢重复操作）。如果RegBack目录为空或陈旧，可使用系统还原点。若仍无法启动，执行 `dism /image:C:\\ /cleanup-image /restorehealth`。最后手段：备份数据后重装系统。"
+    },
+    {
+        "id": 15,
+        "code": "0x00000074",
+        "name": "BAD_SYSTEM_CONFIG_INFO",
+        "meaning": "系统配置信息（主要是SYSTEM注册表蜂巢或BCD引导配置数据）已损坏，导致Windows无法识别正确的硬件配置和启动参数。如同汽车的ECU（发动机控制单元）存储了错误的喷油脉宽表，引擎无法正常工作。技术原因包括：BCD文件被意外删除或修改、SYSTEM蜂巢中的ControlSet001损坏、或磁盘扇区错误影响了配置文件。",
+        "solution": "使用Windows安装介质启动，进入“修复计算机”→“命令提示符”。执行 `bootrec /fixmbr`、`bootrec /fixboot`、`bootrec /rebuildbcd` 重建引导配置。若提示找不到系统，先执行 `diskpart` → `list volume` 确认系统盘盘符。然后执行 `bcdedit /export C:\\bcd_backup` 备份后，删除 `C:\\boot\\bcd` 并重建。如果问题源于注册表，从 `C:\\Windows\\System32\\config\\RegBack\\SYSTEM` 复制覆盖。重启后运行 `sfc /scannow`。"
+    },
+    {
+        "id": 16,
+        "code": "0x00000076",
+        "name": "PROCESS_HAS_LOCKED_PAGES",
+        "meaning": "一个用户模式进程锁定了物理内存页面（通过VirtualLock或AWE），但在进程退出时未解锁，导致系统无法回收这些页面。好比房客退租后却把房门钥匙带走，新房客无法入住。技术上是由于驱动程序或应用程序在调用MmProbeAndLockPages后忘记调用MmUnlockPages，造成内存泄漏。常见于有缺陷的数据库软件、虚拟化平台或视频采集驱动。",
+        "solution": "打开任务管理器，按内存使用量排序，找出异常占用大量内存且无法正常结束的进程。使用RAMMap（Sysinternals工具）查看“进程”标签下哪些进程锁定了大量物理页。更新相关软件到最新版本。如果问题指向某个特定驱动程序（如摄像头驱动），请更新或卸载它。增加物理内存容量可以减少此类问题的影响。在系统属性中禁用“大型系统缓存”（Large System Cache）。若频繁出现，建议更换有问题的软件。"
+    },
+    {
+        "id": 17,
+        "code": "0x00000077",
+        "name": "KERNEL_STACK_INPAGE_ERROR",
+        "meaning": "内核线程所需的栈数据无法从页面文件（pagefile.sys）或映射文件中读取到内存。如同教授上课前发现教案被锁在保险柜里，而自己又没有密码。技术原因包括：页面文件所在的卷出现坏道、磁盘控制器驱动错误、或页面文件本身被损坏。此外，内存条故障导致从磁盘读取的数据在校验时出错也会触发此错误。",
+        "solution": "首先运行 `chkdsk c: /f` 修复磁盘错误。如果C盘有坏道，使用Victoria或HDD Regenerator尝试修复或隔离。在系统属性中，将虚拟内存设置为“系统管理的大小”，并确保页面文件位于健康的磁盘上。如果有多块硬盘，将页面文件移动到非系统盘测试。更新存储控制器驱动和主板芯片组驱动。运行MemTest86检查内存。如果页面文件损坏，可删除后重新创建：`wmic pagefileset delete` 然后 `wmic pagefileset create name=\"C:\\\\pagefile.sys\"`。"
+    },
+    {
+        "id": 18,
+        "code": "0x00000079",
+        "name": "MISMATCHED_HAL",
+        "meaning": "硬件抽象层（HAL）与当前计算机的实际硬件拓扑不匹配。HAL是操作系统与硬件之间的翻译官，如果翻译官拿错了字典（比如单处理器HAL用在多处理器系统上），沟通必然出错。通常发生在将Windows系统盘从一台电脑移植到另一台不同配置的电脑后，或者BIOS中ACPI设置被更改（如从SMP改为单核）。",
+        "solution": "如果最近更换了主板或CPU，必须重新安装操作系统，因为HAL无法在线更改。如果只是BIOS设置变化，请进入BIOS恢复默认设置，特别检查“ACPI”、“SMP”、“MPS”等相关选项。使用Windows安装介质启动，进入命令提示符，执行 `bcdedit /set hal.dll` 指定正确的HAL文件（需知道当前硬件类型）。更简单的办法：备份数据后执行“重置此电脑”并选择“保留我的文件”。"
+    },
+    {
+        "id": 19,
+        "code": "0x0000007A",
+        "name": "KERNEL_DATA_INPAGE_ERROR",
+        "meaning": "内核所需的数据无法从磁盘（页面文件或映射文件）读入内存。与0x77类似，但此错误更侧重于数据而非栈。想象一下，档案馆管理员在目录中找到了文件编号，但实际去取时发现文件柜是空的。技术原因包括：磁盘坏道、文件系统元数据损坏、磁盘控制器驱动Bug、或内存奇偶校验错误导致数据读取失败后无法纠正。",
+        "solution": "运行 `chkdsk c: /f /r` 全面检查和修复磁盘。使用CrystalDiskInfo查看硬盘健康度，如有坏道请立即备份数据。更新存储驱动（SATA/NVMe/AHCI）和主板芯片组驱动。在BIOS中将SATA模式从IDE改为AHCI（如果当前是IDE），反之亦然，测试哪种更稳定。运行MemTest86排除内存故障。如果页面文件所在分区空间不足，请清理或扩展。"
+    },
+    {
+        "id": 20,
+        "code": "0x0000007B",
+        "name": "INACCESSIBLE_BOOT_DEVICE",
+        "meaning": "Windows启动期间无法访问系统引导设备（通常是C盘）。好比司机开车到达停车场入口，却发现栏杆损坏无法进入。技术原因包括：启动卷的驱动程序未正确加载（如SATA控制器驱动丢失或错误）、BIOS中启动模式（Legacy/UEFI）与磁盘分区表（MBR/GPT）不匹配、引导扇区病毒破坏了启动代码、或硬盘物理故障导致无法识别。",
+        "solution": "关机后重新插拔硬盘数据线和电源线。进入BIOS，检查启动顺序中系统盘是否排第一，并确认SATA模式（AHCI/IDE）与Windows安装时一致。使用Windows安装介质启动，进入命令提示符，执行 `bootrec /fixmbr`、`bootrec /fixboot`、`bootrec /rebuildbcd`。如果提示“元素未找到”，执行 `diskpart` → `sel disk 0` → `list vol` 确认系统分区盘符，然后 `exit`，再用 `bcdboot C:\\Windows /s S:`（S为EFI分区盘符）。若仍无效，可能是硬盘损坏，用PE盘备份数据后更换硬盘。"
+    },
+    {
+        "id": 21,
+        "code": "0x0000007E",
+        "name": "SYSTEM_THREAD_EXCEPTION_NOT_HANDLED",
+        "meaning": "系统线程（System Thread）在执行过程中抛出了异常，但该线程没有注册异常处理器。就像工厂流水线上一个无人值守的工位突然冒烟，却没有自动灭火装置。技术本质是内核线程（如系统进程System中的工作线程）访问了无效内存或执行了非法指令。常见于有缺陷的显卡驱动（nvlddmkm.sys）、文件系统过滤器驱动或网络驱动。",
+        "solution": "记录蓝屏信息中最后的模块名称（如xxx.sys）。进入安全模式，卸载或回滚该驱动。如果没有明确模块，使用Driver Verifier对所有第三方驱动进行测试（`verifier /standard /all`）。更新显卡驱动至最新WHQL版本。运行 `sfc /scannow` 和 `DISM` 修复系统文件。检查近期安装的Windows更新或软件，尝试卸载。如果错误指向 `ntfs.sys`，执行 `chkdsk c: /f`。最后，尝试禁用快速启动：`powercfg /h off`。"
+    },
+    {
+        "id": 22,
+        "code": "0x0000007F",
+        "name": "UNEXPECTED_KERNEL_MODE_TRAP",
+        "meaning": "CPU在特权级0（内核模式）下捕获到了一个它无法处理的异常（Trap），例如双重错误（Double Fault）、无效TSS（任务状态段）或堆栈段错误。好比CPU这个精密仪器突然遇到了它设计手册中没有记载的故障代码，只能紧急停机。几乎总是由硬件问题引起：CPU过热、超频不稳、内存时序错误、主板供电波动、或电源纹波过大。",
+        "solution": "首先检查CPU散热器是否安装牢固，清理灰尘并重新涂抹硅脂，确保风扇运转正常。如果CPU超频，恢复默认频率和电压。在BIOS中关闭所有自动超频功能（如Turbo Boost、PBO）。运行Prime95或AIDA64进行压力测试，监控CPU温度和电压。使用MemTest86测试内存稳定性。检查电源额定功率是否足够，用万用表测量12V/5V输出电压。更新BIOS到最新版本。若问题依旧，可能是CPU或主板硬件故障，需替换测试。"
+    },
+    {
+        "id": 23,
+        "code": "0x0000008E",
+        "name": "KERNEL_MODE_EXCEPTION_NOT_HANDLED",
+        "meaning": "内核模式程序（如驱动程序或系统组件）抛出了一个异常，但没有对应的异常处理器。与0x1E类似，但此错误更常见于内存访问违规（如访问了无效地址）。好比保安巡逻时发现一扇门打不开，却没有备用钥匙，只能拉响警报。技术原因包括：驱动程序使用了错误的指针、内存池被破坏、或系统文件损坏。常见于显卡驱动、网卡驱动或第三方杀毒软件的内核模块。",
+        "solution": "进入安全模式，使用DDU卸载显卡驱动后安装最新版。暂时禁用第三方杀毒软件。运行 `sfc /scannow` 和 `DISM` 修复系统文件。使用Driver Verifier定位问题驱动（`verifier /standard /all`）。检查近期安装的硬件或软件，卸载后测试。如果错误信息中包含 `win32k.sys`，尝试更新显卡驱动或降低桌面分辨率/色彩深度。在CMD中执行 `chkdsk c: /f` 检查磁盘。"
+    },
+    {
+        "id": 24,
+        "code": "0x0000009C",
+        "name": "MACHINE_CHECK_EXCEPTION",
+        "meaning": "CPU检测到一个机器检查（Machine Check）错误，通常是硬件级别的严重故障。好比汽车引擎的故障指示灯亮起并自动熄火，提示需要立即检修。技术上是CPU的内部错误检测机制（MCA/MCE）触发了不可恢复的错误，包括：缓存错误、TLB错误、总线错误或微码错误。常见原因：CPU超压/超频过度、散热不良、内存兼容性问题、或主板供电模块（VRM）故障。",
+        "solution": "立即恢复CPU到默认频率和电压，关闭所有超频/降压设置。检查CPU散热器是否贴合紧密，清理灰尘并重新涂抹导热硅脂。运行Prime95或Linpack进行压力测试，监控CPU温度（不应超过85°C）。更新BIOS到最新版本，因为厂商经常修复微码问题。使用MemTest86测试内存，排除内存不稳定引发的MCE。如果问题仅在低负载下出现，可能是CPU内部缺陷，需联系售后更换。"
+    },
+    {
+        "id": 25,
+        "code": "0x0000009F",
+        "name": "DRIVER_POWER_STATE_FAILURE",
+        "meaning": "驱动程序在系统电源状态转换（如睡眠、休眠、唤醒）过程中未能正确响应，导致电源管理状态机进入不一致状态。就像叫一个人起床，他答应了却不起，最后闹钟电池耗尽。技术上是由于驱动在处理IRP_MJ_POWER（电源管理IRP）时返回了错误状态或超时，常见于网卡驱动（尤其是Realtek）、显卡驱动或蓝牙驱动。Windows的快速启动功能（混合关机）也容易暴露此类问题。",
+        "solution": "在电源选项中禁用“快速启动”（`powercfg /h off`）。更新所有驱动程序，特别是网卡、显卡和芯片组驱动。在设备管理器中，找到网卡→属性→电源管理，取消勾选“允许计算机关闭此设备以节约电源”。笔记本用户请更新BIOS和电源管理驱动。在CMD中执行 `powercfg /energy` 生成能源效率报告，分析具体问题驱动。如果问题出现在从休眠唤醒时，可增大 `HiberFileSizePercent` 或重新创建休眠文件。"
+    },
+    {
+        "id": 26,
+        "code": "0x000000A0",
+        "name": "INTERNAL_POWER_ERROR",
+        "meaning": "Windows电源管理内部状态错误，通常与ACPI（高级配置与电源接口）固件或电源策略配置有关。好比智能家居中央控制器的程序逻辑混乱，导致灯光、空调、窗帘随机开关。技术原因包括：ACPI表损坏或与操作系统版本不兼容、电源计划文件（powrprof.dll）损坏、或电池驱动程序（CmBatt.sys）返回了无效数据。常见于笔记本用户在电池老化或更换后。",
+        "solution": "在电源选项中重置所有电源计划为默认设置。以管理员身份运行CMD，执行 `powercfg -restoredefaultschemes`。更新主板BIOS/UEFI固件到最新版本。笔记本用户请校准电池：将电池充满电后放电至10%再充满，重复2-3次。在设备管理器中卸载“Microsoft ACPI-Compliant Control Method Battery”驱动，重启后自动重装。运行 `sfc /scannow` 和 `DISM` 修复系统文件。若电池严重鼓包或续航骤降，请更换电池。"
+    },
+    {
+        "id": 27,
+        "code": "0x000000A5",
+        "name": "ACPI_BIOS_ERROR",
+        "meaning": "ACPI BIOS固件与Windows ACPI驱动程序之间的通信出现不可恢复的错误。ACPI是操作系统与主板固件之间的“翻译官”，如果翻译官拿错了词典，双方就会产生严重误解。技术原因包括：BIOS中的ACPI表（DSDT、SSDT）存在Bug、主板CMOS电池电量不足导致ACPI配置丢失、或Windows ACPI驱动（acpi.sys）与固件版本不兼容。常见于老旧主板安装新系统后。",
+        "solution": "首先重置BIOS到出厂默认设置（拔掉CMOS电池或短接跳线）。更新主板BIOS到最新版本，厂商通常会修复ACPI兼容性问题。如果更新后仍不行，尝试在BIOS中禁用“ACPI 2.0 Support”、“ACPI APIC Support”等选项（视主板而定）。运行Windows内存诊断排除内存问题。如果使用的是Windows 10/11，尝试在BIOS中将操作系统类型从“Other OS”改为“Windows 8/10”以启用更完善的ACPI功能。"
+    },
+    {
+        "id": 28,
+        "code": "0x000000B4",
+        "name": "VIDEO_DRIVER_INIT_FAILURE",
+        "meaning": "Windows图形子系统在启动时无法成功初始化显卡驱动程序，导致系统无法显示任何图形界面。好比电视机开机后屏幕一直显示“无信号”——显卡驱动这个“信号源”没有正常工作。技术原因包括：显卡驱动文件损坏或版本不兼容、显卡硬件故障（如显存损坏）、或注册表中显卡驱动相关键值被错误修改。常见于驱动更新中断、显卡超频失败或BIOS中集显/独显切换设置错误。",
+        "solution": "开机按F8进入安全模式（或使用VGA模式）。在设备管理器中展开“显示适配器”，右键点击显卡选择“卸载设备”，勾选“删除此设备的驱动程序软件”。重启后，系统会自动安装通用驱动，此时再去显卡官网下载最新WHQL驱动安装。如果安全模式也无法进入，使用Windows安装介质启动，进入命令提示符，执行 `dism /image:C:\\ /remove-package /packagename:Package_for_KB...` 卸载最近安装的显卡驱动更新。若显卡硬件故障，更换显卡测试。"
+    },
+    {
+        "id": 29,
+        "code": "0x000000BE",
+        "name": "ATTEMPTED_WRITE_TO_READONLY_MEMORY",
+        "meaning": "某个驱动程序或内核组件试图向标记为只读（Read-Only）的内存区域写入数据，触发了内存保护机制。好比有人试图用粉笔在博物馆的玻璃展柜上写字——保安立刻制止。技术上是由于驱动代码中存在Bug，错误地修改了代码段（.text）或常量数据段（.rdata），这些区域在加载时已被设置为只读。常见于有缺陷的显卡驱动、杀毒软件的内核钩子（Hook）或Rootkit恶意软件。",
+        "solution": "此错误强烈暗示驱动或恶意软件正在破坏系统完整性。首先使用Windows Defender或其他杀毒软件进行全盘扫描（包括脱机扫描）。更新所有驱动程序，特别是显卡和网卡驱动。使用Driver Verifier对所有非微软驱动进行验证（`verifier /standard /all`）。如果问题指向特定驱动（如xxx.sys），卸载该硬件并更换品牌。运行 `sfc /scannow` 和 `DISM` 修复系统文件。若怀疑Rootkit，使用Autoruns检查异常启动项和内核驱动。"
+    },
+    {
+        "id": 30,
+        "code": "0x000000C2",
+        "name": "BAD_POOL_CALLER",
+        "meaning": "内核或驱动程序在调用内存池管理函数时使用了错误的参数或状态，例如试图释放一个已经空闲的内存块、或分配一个大小为零的内存块。好比你去图书馆借书，却告诉管理员你要借一本“不存在”的书——系统无法理解这种请求。技术上是由于驱动中内存管理逻辑存在Bug，常见于网络驱动、USB驱动或第三方过滤驱动。",
+        "solution": "更新所有驱动程序，尤其是网卡、USB控制器和蓝牙驱动。使用Driver Verifier定位问题驱动：`verifier /flags 0x209BB /all` 后重启，系统会在蓝屏时显示违规驱动名称。运行 `sfc /scannow` 修复系统文件。检查近期安装的软件，特别是涉及网络过滤或文件加密的工具。如果问题出现在使用特定USB设备时，更换USB端口或更新该设备驱动。在CMD中执行 `chkdsk c: /f` 排除磁盘错误。"
+    },
+    {
+        "id": 31,
+        "code": "0x000000C4",
+        "name": "DRIVER_VERIFIER_DETECTED_VIOLATION",
+        "meaning": "Driver Verifier（驱动程序验证器）在运行时检测到某个驱动程序违反了Windows驱动程序模型（WDM）的规则。Driver Verifier就像一个严格的交通警察，专门盯着驱动程序是否闯红灯、超速或违章停车。一旦抓到违规，立即开出蓝屏罚单并指明违规者。技术违规包括：内存池溢出、使用错误的中断级别、或释放未分配的内存等。",
+        "solution": "此错误是Driver Verifier主动触发的，目的是帮助定位问题驱动。重启电脑，在启动过程中按F8选择“禁用驱动程序签名强制”或进入安全模式。以管理员身份运行CMD，执行 `verifier /reset` 关闭Driver Verifier。然后根据蓝屏信息中显示的驱动名称（如xxx.sys），更新或卸载该驱动。如果无法确定，可使用 `verifier /query` 查看当前验证设置。修复问题后，可重新开启Verifier但仅针对可疑驱动。"
+    },
+    {
+        "id": 32,
+        "code": "0x000000C5",
+        "name": "DRIVER_CORRUPTED_EXPOOL",
+        "meaning": "驱动程序破坏了系统内存池（ExPool）的管理结构，导致后续所有内存分配操作都可能失败。好比仓库管理员发现货架编号牌被熊孩子涂改，再也无法准确找到货物。技术上是由于驱动在释放内存后仍继续使用该内存（Use-After-Free），或越界写入相邻内存块，破坏了池头部（Pool Header）的完整性。常见于无线网卡驱动、VPN客户端或反作弊软件。",
+        "solution": "使用Driver Verifier精确定位破坏内存池的驱动：`verifier /flags 0x209BB /all` 后重启。根据蓝屏信息中的驱动名称，更新或卸载该驱动。如果无法确定，可尝试逐步禁用非必要硬件（如Wi-Fi、蓝牙）来缩小范围。运行 `sfc /scannow` 修复系统文件。检查近期安装的软件，特别是游戏反作弊系统（如EAC、BattlEye）。更新主板芯片组驱动以确保内存管理基础稳定。"
+    },
+    {
+        "id": 33,
+        "code": "0x000000CE",
+        "name": "DRIVER_UNLOADED_WITHOUT_CANCELLING_PENDING_OPERATIONS",
+        "meaning": "驱动程序在卸载时没有取消其正在进行的I/O操作，导致系统资源泄露或后续操作访问已释放的内存。好比快递员突然辞职，但手里还有没送完的包裹——这些包裹永远无法送达，客户投诉也无门。技术上是由于驱动在DispatchCleanup或Unload例程中遗漏了IoCancelIrp调用，常见于USB设备驱动或虚拟光驱软件。",
+        "solution": "更新所有驱动程序，尤其是USB控制器、虚拟光驱（如DAEMON Tools）和蓝牙驱动。使用Driver Verifier检测卸载不干净的驱动：`verifier /flags 0x209BB /all`。检查设备管理器中是否有黄色感叹号的设备，卸载其驱动并重新安装。如果近期安装了虚拟化软件（如VirtualBox、VMware），更新或暂时卸载。运行 `sfc /scannow` 修复系统文件。在安全模式下卸载最近安装的软件，逐一排查。"
+    },
+    {
+        "id": 34,
+        "code": "0x000000D1",
+        "name": "DRIVER_IRQL_NOT_LESS_OR_EQUAL",
+        "meaning": "某个驱动程序在过高的IRQL（中断请求级别）下访问了可分页内存，或访问了无效地址。与0x0A类似，但此错误明确指向驱动程序而非系统组件。好比一个士兵在将军会议室（高权限区域）里试图翻阅普通士兵手册（低权限数据），卫兵自然会阻拦。技术上是由于驱动在DISPATCH_LEVEL或更高级别上解引用了一个指向分页内存的指针，而该内存当时可能已被换出。网卡驱动是头号嫌疑犯。",
+        "solution": "优先更新网卡驱动，尤其是Realtek、Intel和Qualcomm Atheros型号。其次更新显卡和无线网卡驱动。在设备管理器中找到网卡→属性→高级，禁用“大量发送卸载”（Large Send Offload）和“TCP/IP校验和卸载”等功能。运行 `sfc /scannow` 修复系统文件。使用Driver Verifier对网卡驱动进行针对性测试。如果问题指向特定驱动文件（如rt640x64.sys），直接更新该硬件驱动。"
+    },
+    {
+        "id": 35,
+        "code": "0x000000D5",
+        "name": "DRIVER_PAGE_FAULT_IN_FREED_SPECIAL_POOL",
+        "meaning": "驱动程序访问了已被释放的特殊内存池（Special Pool），这是一种典型的内存释放后使用（Use-After-Free）错误。好比退房后你还用旧房卡去开原来的房间——门锁已换，自然打不开。技术上是由于驱动在调用ExFreePoolWithTag释放内存后，仍然保留了指向该内存的指针并在后续使用，而Special Pool区域在被释放后会被填充特殊标记（如0xCDCDCDCD），访问即触发页错误。",
+        "solution": "启用Driver Verifier的“特殊池”选项：`verifier /flags 0x209BB /all` 后重启，系统会在驱动访问已释放内存时立即蓝屏并指出违规驱动。根据蓝屏信息更新或卸载该驱动。运行 `sfc /scannow` 修复系统文件。如果问题出现在特定软件运行时，尝试更新该软件或寻找替代品。检查近期Windows更新，部分补丁可能引入了回归Bug。"
+    },
+    {
+        "id": 36,
+        "code": "0x000000D8",
+        "name": "DRIVER_USED_EXCESSIVE_PTES",
+        "meaning": "某个驱动程序占用了过多的页表项（PTE），导致系统PTE池接近耗尽。好比一个顾客推走了超市里所有的购物车，其他人无法购物。技术上是由于驱动频繁调用MmMapIoSpace或AllocateCommonBuffer来映射物理内存到虚拟地址空间，但未及时释放映射。常见于有内存泄漏的显卡驱动（尤其是OpenGL/CUDA应用）、视频采集卡驱动或GPU计算驱动。",
+        "solution": "更新显卡驱动至最新版本，因为它是PTE消耗的主要来源。使用PoolMon（Windows SDK工具）监控PTE使用量：`poolmon /p` 查看按标签排序的PTE分配。如果物理内存小于8GB，建议升级内存。在系统属性中增大虚拟内存（设为物理内存的2倍）。如果问题出现在特定GPU计算任务中，减少并行任务数量或降低纹理分辨率。检查是否有第三方软件（如视频编辑工具）在后台持续分配显存。"
+    },
+    {
+        "id": 37,
+        "code": "0x000000E3",
+        "name": "RESOURCE_NOT_OWNED",
+        "meaning": "一个线程试图释放或操作一个它并不拥有的内核资源（如快速互斥体、执行资源或旋锁）。好比一个人试图打开别人家的信箱取信——系统会判定为非法操作。技术上是由于驱动中资源获取/释放配对错误，例如一个线程获取了资源但另一个线程尝试释放，或者同一线程释放了两次。常见于文件系统过滤器驱动、存储驱动或多线程处理有Bug的驱动。",
+        "solution": "更新所有驱动程序，尤其是存储和文件系统相关驱动。使用Driver Verifier的“IRQL检查”和“锁检查”选项：`verifier /flags 0x209BB /all`。运行 `sfc /scannow` 修复系统文件。如果问题出现在使用第三方备份或加密软件时，卸载该软件。检查近期Windows更新，KB4532693等补丁曾引入此问题。在安全模式下观察是否复现，若不复现则逐步启用启动项排查。"
+    },
+    {
+        "id": 38,
+        "code": "0x000000EA",
+        "name": "THREAD_STUCK_IN_DEVICE_DRIVER",
+        "meaning": "一个线程在设备驱动程序中无限期卡住，导致系统无法响应。最常见的情况是显卡驱动在处理图形命令时进入了死循环或等待某个硬件信号超时。好比打印机卡纸后，打印队列中的所有任务都停滞不前。技术上是由于显卡硬件挂起（Hang），驱动在等待GPU完成渲染时超过了超时阈值（通常为2秒）。Windows的TDR（Timeout Detection and Recovery）机制会尝试恢复，但若恢复失败则触发此蓝屏。",
+        "solution": "使用DDU在安全模式下彻底卸载显卡驱动，安装最新WHQL版本（非Beta）。在注册表中增加TDR超时时间：`HKLM\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers` 新建DWORD `TdrDelay`，值为8（秒）。降低显卡核心频率和显存频率各50-100MHz，使用MSI Afterburner调整。检查显卡温度，清理灰尘并改善机箱风道。如果显卡支持双BIOS，切换到静音模式测试。运行FurMark进行压力测试，观察是否复现。若问题依然存在，可能是显卡硬件故障（如显存虚焊），需送修或更换。"
+    },
+    {
+        "id": 39,
+        "code": "0x000000ED",
+        "name": "UNMOUNTABLE_BOOT_VOLUME",
+        "meaning": "Windows无法挂载启动卷，即系统无法识别或访问引导分区。好比司机到达停车场入口，但栏杆始终不抬起，车辆无法进入。技术原因包括：硬盘数据线接触不良、文件系统超级块损坏、引导扇区被病毒改写、或磁盘控制器驱动未正确加载。常见于突然断电后重启、硬盘热插拔、或MBR/GPT分区表损坏。",
+        "solution": "关机后重新插拔硬盘数据线和电源线，确保接触牢固。使用Windows安装介质启动，进入命令提示符，执行 `bootrec /fixmbr`、`bootrec /fixboot`、`bootrec /rebuildbcd`。若无效，执行 `chkdsk c: /f` 修复文件系统。检查BIOS中SATA模式（AHCI/IDE）是否与安装系统时一致。如果硬盘是GPT格式，确保UEFI启动模式已启用。若硬盘有物理坏道，使用Victoria修复或隔离坏道，严重则更换硬盘。"
+    },
+    {
+        "id": 40,
+        "code": "0x000000F2",
+        "name": "HARDWARE_INTERRUPT_STORM",
+        "meaning": "某个硬件设备产生了过多的中断请求，导致CPU被中断风暴淹没，无法正常处理其他任务。好比一个人被连续不断的电话铃声骚扰，根本无法安心工作。技术上是由于设备驱动程序未能正确屏蔽中断，或者硬件本身存在电气故障，导致中断信号线持续拉低。常见于有缺陷的网卡、声卡或USB控制器。",
+        "solution": "更新所有驱动程序，尤其是网卡、声卡和USB控制器驱动。在设备管理器中逐个禁用可疑设备，观察中断是否下降。使用LatencyMon工具检测哪些驱动程序引起了高延迟。检查硬件是否安装牢固，有无松动或短路。如果问题指向特定PCIe设备，尝试更换插槽。更新主板BIOS，有时厂商会修复中断路由Bug。若使用无线网卡，尝试更换有线连接测试。"
+    },
+    {
+        "id": 41,
+        "code": "0x000000F3",
+        "name": "DISORDERLY_SHUTDOWN",
+        "meaning": "系统经历了非正常的关机过程，例如突然断电、强制按电源键或蓝屏后自动重启。这种粗暴的关机方式可能导致正在写入的文件系统元数据损坏、注册表事务日志未提交、或磁盘缓存数据丢失。好比正在写作业时突然被撕掉本子，下次继续时内容就不连贯了。技术上是由于系统未完成正常的关机序列（Flush所有缓冲、通知文件系统、关闭服务）就失去了电源。",
+        "solution": "检查电源线和插座是否接触良好，排除家庭电路问题。更换高质量的电源插座或UPS不间断电源。更新主板芯片组驱动和电源管理驱动。在CMD中执行 `powercfg /h off` 后重启，再执行 `powercfg /h on` 重新创建休眠文件。运行 `chkdsk c: /f` 修复可能因非正常关机导致的文件系统错误。如果问题频繁出现，可能是电源硬件老化，用替换法测试。"
+    },
+    {
+        "id": 42,
+        "code": "0x000000F4",
+        "name": "CRITICAL_OBJECT_TERMINATION",
+        "meaning": "一个或多个关键系统进程（如csrss.exe、winlogon.exe、smss.exe）被意外终止，导致Windows无法继续运行。好比航母的舰桥指挥系统被摧毁，整艘船失去控制。技术原因包括：恶意软件攻击关键进程、系统文件损坏、硬盘坏道导致进程代码无法读取、或内存错误导致进程崩溃。此错误非常严重，通常意味着系统完整性已受损。",
+        "solution": "使用Windows Defender或其他杀毒软件进行全盘脱机扫描，查杀Rootkit和恶意软件。运行 `sfc /scannow` 和 `DISM /Online /Cleanup-Image /RestoreHealth` 修复系统文件。使用chkdsk检查硬盘坏道。如果问题出现在启动阶段，使用Windows安装介质启动并执行启动修复。若无法修复，备份重要数据后执行“重置此电脑”或重装系统。检查是否安装了不兼容的第三方安全软件，卸载后测试。"
+    },
+    {
+        "id": 43,
+        "code": "0x000000F5",
+        "name": "FLTMGR_FILE_SYSTEM",
+        "meaning": "文件系统筛选管理器（FltMgr）检测到错误，通常是由于某个文件系统过滤驱动（如杀毒软件、备份软件、加密软件）在处理IRP时出现了异常。好比安检通道的X光机故障，导致所有行李无法通过。技术上是由于过滤驱动在PreOperation或PostOperation回调中返回了错误状态，或破坏了IRP栈。常见于第三方杀毒软件（如McAfee、Norton）的文件实时监控模块。",
+        "solution": "暂时禁用或卸载第三方杀毒软件和防火墙，使用Windows Defender作为替代。卸载任何文件加密、备份或云同步软件（如Dropbox、OneDrive的壳扩展）。运行 `fltmc instances` 查看已加载的文件系统过滤驱动实例。使用 `fltmc detach` 卸载可疑的过滤驱动（需谨慎）。更新所有安全软件到最新版本。运行 `sfc /scannow` 修复系统文件。如果问题解决，逐一重新安装软件以定位冲突源。"
+    },
+    {
+        "id": 44,
+        "code": "0x000000F6",
+        "name": "PCI_VERIFICATION_FAILURE",
+        "meaning": "PCI总线上的设备未能通过Windows PCI总线驱动程序的验证检查。好比高速公路收费站发现一辆车的电子标签无效，拒绝通行。技术原因包括：PCIe设备配置空间损坏、设备与主板存在电气兼容性问题、或设备未正确枚举。常见于显卡、NVMe固态硬盘或PCIe转接卡接触不良。",
+        "solution": "关机后重新插拔所有PCIe设备（显卡、SSD、声卡等），确保完全插入到位。检查PCIe插槽内是否有灰尘或异物。更新主板芯片组驱动和BIOS到最新版本。在BIOS中将PCIe速率从Auto改为Gen3或Gen2，降低兼容性压力。如果问题指向特定设备，尝试更换PCIe插槽。运行 `chkdsk` 检查磁盘。使用Live Linux USB启动，观察是否识别所有PCIe设备，以排除Windows驱动问题。"
+    },
+    {
+        "id": 45,
+        "code": "0x000000F7",
+        "name": "DRIVER_OVERRAN_STACK_BUFFER",
+        "meaning": "驱动程序发生了栈缓冲区溢出，即向局部变量数组写入了超过其容量的数据，覆盖了相邻的栈空间。好比往一个只能装500ml的杯子里倒了1升水，水漫金山并淹没了旁边的电器。这是一个严重的安全漏洞（CWE-121），可能被攻击者利用来提升权限或执行任意代码。技术上是由于驱动中缺乏边界检查，常见于第三方网卡驱动或输入设备驱动。",
+        "solution": "立即更新所有驱动程序到最新版本，尤其是网卡、键盘/鼠标驱动。使用Driver Verifier的“缓冲区溢出检测”选项：`verifier /flags 0x209BB /all`。运行Windows Update安装所有安全补丁，微软通常会修复已知的驱动漏洞。如果问题指向特定驱动文件（如xxx.sys），卸载对应硬件并使用替代品牌。运行 `sfc /scannow` 修复系统文件。考虑使用Windows Defender Application Control（WDAC）阻止未签名驱动加载。"
+    },
+    {
+        "id": 46,
+        "code": "0x000000F8",
+        "name": "RAMDISK_BOOT_INITIALIZATION_FAILED",
+        "meaning": "系统尝试初始化RAM Disk（内存盘）启动时失败。RAM Disk是一种将一部分物理内存模拟为磁盘的技术，常用于嵌入式系统或加速临时文件读写。技术原因包括：内存配置错误、BIOS中RAM Disk设置不当、或引导配置中指定了无效的RAM Disk镜像路径。普通用户极少遇到，多见于使用Windows Embedded或定制化系统的场景。",
+        "solution": "如果启用了RAM Disk启动，请在BIOS中禁用该功能。检查BCD引导配置：`bcdedit /enum` 查看是否有 `ramdisksdidevice` 和 `ramdisksdipath` 参数，如有则删除。运行 `bcdedit /deletevalue {ramdiskoptions} ramdisksdidevice`。确保系统盘有足够空间用于页面文件。如果内存不稳定，运行MemTest86检查。恢复BIOS默认设置。"
+    },
+    {
+        "id": 47,
+        "code": "0x000000F9",
+        "name": "DRIVER_RETURNED_STATUS_REPARSE_FOR_VOLUME_OPEN",
+        "meaning": "驱动程序在打开卷（Volume）时返回了STATUS_REPARSE状态，但调用者未预期此状态。好比你去图书馆借书，管理员告诉你“这本书需要特殊审批”，但你并没有准备审批流程。技术上是由于文件系统过滤驱动或卷筛选驱动在处理IRP_MJ_CREATE时错误地返回了重解析状态，导致上层组件无法处理。常见于加密软件或虚拟光驱驱动。",
+        "solution": "卸载最近安装的第三方加密软件、虚拟光驱（如Alcohol 120%、Daemon Tools）或文件压缩工具。更新所有存储和文件系统相关驱动。运行 `chkdsk c: /f` 修复文件系统。使用 `fltmc` 命令查看已加载的过滤驱动，卸载可疑驱动。如果问题出现在访问特定外部存储设备时，格式化该设备（备份数据后）。"
+    },
+    {
+        "id": 48,
+        "code": "0x000000FA",
+        "name": "HTTP_DRIVER_CORRUPTED",
+        "meaning": "HTTP.sys驱动程序（Windows HTTP协议栈内核模式组件）检测到内部数据结构损坏。HTTP.sys负责处理HTTP请求，是IIS和许多网络应用的基础。好比邮局的信件分拣系统数据库损坏，导致邮件无法正确投递。技术原因包括：驱动文件被病毒感染、系统更新不完整导致文件哈希不匹配、或内存错误破坏了驱动代码段。",
+        "solution": "以管理员身份运行CMD，执行 `netsh http show state` 查看HTTP.sys状态。执行 `netsh http flush logbuffer` 刷新日志。运行 `sfc /scannow` 和 `DISM /Online /Cleanup-Image /RestoreHealth` 修复系统文件。如果系统启用了IIS，尝试重启World Wide Web Publishing服务。检查近期Windows更新，重新安装KB5000802等与HTTP.sys相关的补丁。全盘扫描病毒，特别是针对Web服务器的恶意软件。"
+    },
+    {
+        "id": 49,
+        "code": "0x000000FC",
+        "name": "ATTEMPTED_EXECUTE_OF_NOEXECUTE_MEMORY",
+        "meaning": "某个程序试图在标记为不可执行（NX/XD）的内存区域中执行代码，触发了数据执行保护（DEP）机制。好比想在游泳池里点火烧烤——系统出于安全考虑直接阻止。技术上是由于缓冲区溢出攻击或驱动程序错误地将代码指针指向了数据段。DEP是Windows重要的安全缓解措施，此错误表明可能有恶意软件试图利用漏洞执行代码。",
+        "solution": "运行杀毒软件全盘扫描，包括脱机扫描。更新所有驱动程序到最新版本。在系统属性→高级→性能→数据执行保护中，确保DEP已开启（应为“仅为基本Windows程序和服务启用”）。如果问题出现在特定程序中，可为该程序添加DEP例外（不推荐）。运行 `sfc /scannow` 修复系统文件。检查近期安装的软件，卸载可疑程序。如果错误指向浏览器或Office，更新到最新版本。"
+    },
+    {
+        "id": 50,
+        "code": "0x000000FD",
+        "name": "DIRTY_NOWRITE_PAGES_CONGESTION",
+        "meaning": "内存中等待写入磁盘的脏页面（Dirty Pages）数量过多，导致系统内存管理出现拥塞。好比厨房洗碗池里堆满了待洗的碗碟，新的脏碗不断加入，但排水速度跟不上。技术上是由于磁盘写入速度过慢（如机械硬盘碎片化）、物理内存不足导致页面回收压力大、或存储驱动存在性能问题。常见于内存较小（≤4GB）且运行大量IO密集型应用的系统。",
+        "solution": "增加物理内存容量，建议至少8GB。在系统属性中增大虚拟内存，设为物理内存的2倍。检查磁盘健康度，若使用机械硬盘，考虑升级为SSD。运行 `defrag c:` 整理磁盘碎片（仅限HDD）。更新存储控制器驱动。在注册表 `HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management` 中增加 `DisablePagingExecutive`（DWORD=1）可减少页面文件使用，但会增加内存占用。关闭不必要的后台程序和启动项。"
+    },
+    {
+        "id": 51,
+        "code": "0x000000FE",
+        "name": "BUGCODE_USB_DRIVER",
+        "meaning": "USB相关驱动程序（usbhub.sys、usbport.sys等）检测到了错误。好比USB接口的翻译官胡言乱语，导致电脑和USB设备之间的通信彻底失败。技术原因包括：USB控制器驱动Bug、USB设备固件缺陷、或USB电缆屏蔽不良导致信号完整性下降。常见于USB 3.0设备插在USB 2.0接口上、前置USB面板接线错误、或劣质USB集线器。",
+        "solution": "更新主板芯片组驱动和USB控制器驱动（来自Intel、AMD或主板厂商）。逐个拔掉USB设备，找出导致问题的设备。如果问题出现在特定USB设备上，更新该设备的固件或驱动。避免使用USB延长线或劣质集线器。在设备管理器中禁用USB选择性暂停设置。更新BIOS，有时厂商会修复USB兼容性问题。如果前置USB面板有问题，改用后置主板USB口。"
+    },
+    {
+        "id": 52,
+        "code": "0x00000101",
+        "name": "CLOCK_WATCHDOG_TIMEOUT",
+        "meaning": "CPU的某个核心在规定时间内没有响应系统的时钟中断，即看门狗超时。好比老师点名时有一个学生始终不答到，说明该核心可能已卡死或进入某种异常状态。技术上是由于CPU核心间的通信（如IPI中断）失败，或核心在执行低功耗状态（C-State）时未能及时唤醒。常见于CPU超频过度、BIOS中节能设置冲突、或主板供电不稳定。",
+        "solution": "如果CPU超频，立即恢复默认频率和电压。在BIOS中禁用CPU C-State节能功能（如C1E、C6、C7）。更新BIOS到最新版本，厂商经常修复看门狗相关问题。检查CPU散热器安装是否牢固，温度是否过高。运行Prime95进行压力测试，监控每个核心的温度和频率。如果问题只在特定负载下出现，尝试增加CPU核心电压（Offset模式+0.02V）。若仍不行，可能是CPU内部缺陷，需更换。"
+    },
+    {
+        "id": 53,
+        "code": "0x00000104",
+        "name": "AGP_INVALID_ACCESS",
+        "meaning": "AGP显卡进行了无效的内存访问。AGP（加速图形端口）是较早期的显卡接口标准，现已淘汰。技术上是由于AGP驱动或显卡GART（图形地址重映射表）配置错误，导致显卡访问了非法的内存地址。常见于老旧系统（Windows XP/Vista）中使用AGP显卡的用户。现代系统已不再使用AGP。",
+        "solution": "更新显卡驱动到支持AGP的最新版本（通常来自显卡制造商，而非微软）。在BIOS中检查AGP孔径大小（AGP Aperture Size），建议设为系统内存的一半（如1GB内存设512MB）。降低AGP传输速度（如从8x降至4x）。检查显卡金手指是否氧化，用橡皮擦清洁。如果显卡太老旧，建议更换为PCIe接口的现代显卡。"
+    },
+    {
+        "id": 54,
+        "code": "0x00000105",
+        "name": "AGP_GART_CORRUPTION",
+        "meaning": "AGP显卡的图形地址重映射表（GART）损坏，导致显卡无法正确映射系统内存作为显存使用。好比显卡手里的地址翻译字典被撕碎，它找不到正确的内存位置。技术上是由于AGP驱动Bug、内存不稳定或显卡硬件老化导致GART表项错误。",
+        "solution": "更新显卡驱动和主板芯片组驱动。在BIOS中降低AGP传输速度（8x→4x），并减小AGP孔径。运行MemTest86检查系统内存稳定性，因为GART表存储在系统内存中。清洁显卡金手指。如果问题依旧，可能是显卡硬件故障，建议更换。"
+    },
+    {
+        "id": 55,
+        "code": "0x00000106",
+        "name": "AGP_ILLEGALLY_REPROGRAMMED",
+        "meaning": "AGP显卡被非法重新编程，可能是某个软件或驱动试图修改AGP控制器的寄存器设置，但操作不被允许。好比有人私自修改了交通信号灯的控制程序，导致路口混乱。技术上是由于超频软件（如PowerStrip）或显卡BIOS刷新工具错误地操作了AGP配置空间。",
+        "solution": "卸载任何显卡超频或调节工具（如RivaTuner、PowerStrip）。如果刷写过显卡BIOS，刷回官方版本。更新显卡驱动和主板芯片组驱动。在BIOS中恢复AGP相关设置的默认值。如果显卡支持双BIOS，切换到备份BIOS。"
+    },
+    {
+        "id": 56,
+        "code": "0x00000108",
+        "name": "THIRD_PARTY_FILE_SYSTEM_FAILURE",
+        "meaning": "第三方文件系统驱动（非微软原生NTFS/exFAT/FAT32）报告了错误。例如，安装了Ext2Fsd（读取Linux分区）、MacDrive（读取HFS+）、或加密文件系统驱动后，这些驱动在处理文件操作时出现了异常。好比请了一位外聘的图书管理员，但他不熟悉图书馆的分类系统，导致书籍乱放。",
+        "solution": "卸载最近安装的任何第三方文件系统驱动或软件。如果使用了双系统工具（如Paragon HFS+、Ext2Fsd），暂时禁用或卸载。运行 `chkdsk` 检查受影响的分区。更新第三方文件系统软件到最新版本。如果问题出现在访问特定外部存储设备时，在磁盘管理中重新格式化该设备（备份数据后）。"
+    },
+    {
+        "id": 57,
+        "code": "0x00000109",
+        "name": "CRITICAL_STRUCTURE_CORRUPTION",
+        "meaning": "Windows内核检测到关键的内核数据结构（如调度器链表、对象管理器句柄表、内存管理结构）被非法修改或损坏。这是非常严重的安全错误，通常意味着恶意软件（尤其是Rootkit）或严重的内核级Bug正在破坏系统完整性。好比银行的金库报警系统检测到墙壁被凿穿——必须立即启动最高级别应急预案。",
+        "solution": "立即使用Windows Defender脱机扫描或第三方救援盘（如Kaspersky Rescue Disk）进行全盘扫描，查杀Rootkit。运行 `sfc /scannow` 和 `DISM` 修复系统文件。使用Autoruns检查异常的内核驱动和启动项。如果无法清除感染，备份重要数据后彻底重装系统。确保系统已安装所有安全更新。考虑启用Windows Defender Application Control（WDAC）或Credential Guard增强防护。"
+    },
+    {
+        "id": 58,
+        "code": "0x0000010A",
+        "name": "SESSION_HAS_VALID_POOL_ON_EXIT",
+        "meaning": "一个用户会话在退出时仍然持有有效的内存池分配，即内存泄漏。好比房客退租后房间里还开着灯和空调，浪费资源。技术上是由于会话驱动程序（如win32k.sys、显卡驱动）在会话结束时未能释放为该会话分配的内存池。常见于远程桌面服务（RDP）或快速用户切换场景。",
+        "solution": "更新显卡驱动，因为它是会话内存池的主要使用者。检查远程桌面服务（TermService）是否正常运行，重启该服务。在系统属性中禁用“快速用户切换”。如果使用了多用户登录，减少同时活动的会话数量。运行 `poolmon` 监控会话池使用情况。安装最新的Windows累积更新。"
+    },
+    {
+        "id": 59,
+        "code": "0x0000010C",
+        "name": "FSRTL_EXTRA_CREATE_PARAMETER_VIOLATION",
+        "meaning": "文件系统运行时库（FsRtl）在处理额外创建参数（ECP）时发生了违规。ECP是文件创建操作中携带的附加上下文信息，用于支持如文件加密、完整性检查等功能。好比寄快递时附加了特殊说明标签，但快递员看不懂这些标签导致包裹处理错误。技术上是由于文件系统过滤驱动错误地修改或删除了ECP列表。",
+        "solution": "暂时禁用或卸载第三方杀毒软件和文件加密软件。更新所有安全软件到最新版本。运行 `sfc /scannow` 修复系统文件。使用 `fltmc` 命令查看已加载的过滤驱动，卸载可疑驱动。如果问题出现在特定应用程序中，更新该程序。"
+    },
+    {
+        "id": 60,
+        "code": "0x0000010D",
+        "name": "WDF_VIOLATION",
+        "meaning": "Windows驱动程序框架（WDF）检测到违反框架规则的调用。WDF是微软提供的驱动开发框架，旨在简化驱动编写。如果驱动开发者没有遵循WDF的约定（如错误地调用WdfObjectDelete、或在错误的回调中访问对象），框架就会触发此错误。好比参加考试时没有遵守考场纪律，监考老师直接没收试卷。",
+        "solution": "更新所有使用WDF框架的驱动程序（大部分现代驱动都基于WDF）。运行Windows Update获取最新的WDF运行时库更新。使用Driver Verifier对WDF驱动进行验证：`verifier /flags 0x209BB /all`。根据蓝屏信息中的驱动名称，更新或卸载该驱动。如果问题出现在特定硬件上，联系制造商获取修复版驱动。"
+    },
+    {
+        "id": 61,
+        "code": "0x0000010E",
+        "name": "VIDEO_MEMORY_MANAGEMENT_INTERNAL",
+        "meaning": "显卡视频内存管理器（VidMm）内部状态不一致，通常与显存分配、分页或映射操作有关。好比显卡自己的财务管理系统账目混乱，不知道哪些显存已被占用。技术原因包括：显卡驱动Bug导致显存泄漏、显存硬件错误（ECC校验失败）、或GPU核心故障。常见于显卡超频不稳、显存过热或驱动缺陷。",
+        "solution": "使用DDU卸载显卡驱动后安装最新WHQL版本。降低显存频率50-100MHz，如果超频则恢复默认。运行显存测试工具（如Video Memory Stress Test、OCCT VRAM测试）检查显存稳定性。检查显卡温度，确保显存温度不超过90°C。如果问题仅在特定游戏中出现，降低纹理质量和分辨率。若显存硬件损坏，需更换显卡。"
+    },
+    {
+        "id": 62,
+        "code": "0x0000010F",
+        "name": "RESOURCE_MANAGER_EXCEPTION_NOT_HANDLED",
+        "meaning": "资源管理器（Resource Manager）组件在处理系统资源时遇到了未处理的异常。资源管理器负责协调对CPU、内存、I/O等资源的访问。好比城市交通管理中心遇到突发的系统故障，无法继续调度红绿灯。技术原因包括：驱动程序错误地操作了资源描述符、或内核资源跟踪结构损坏。",
+        "solution": "更新所有驱动程序，尤其是最近安装的硬件驱动。运行 `sfc /scannow` 和 `DISM` 修复系统文件。使用Driver Verifier定位问题驱动。检查系统资源使用情况，看是否有进程异常占用。如果问题出现在虚拟化环境中，更新Hyper-V或VMware Tools。"
+    },
+    {
+        "id": 63,
+        "code": "0x00000111",
+        "name": "RECURSIVE_NMI",
+        "meaning": "系统发生了递归式不可屏蔽中断（NMI），即NMI处理程序在执行过程中又被另一个NMI中断，导致无限递归。好比消防队救火时自己所在的消防站也着火了——救援行动陷入死循环。这通常是硬件层面的严重问题，如CPU内部错误、主板NMI线路短路、或电源故障导致持续的NMI信号。",
+        "solution": "检查CPU和主板是否有物理损坏迹象（如烧焦、电容鼓包）。更新BIOS到最新版本。检查电源是否稳定输出，用替换法测试。如果使用了服务器硬件，检查IPMI日志中记录的NMI来源。断开所有非必要外围设备，最小化配置测试。如果问题持续，可能是主板或CPU故障，需送修。"
+    },
+    {
+        "id": 64,
+        "code": "0x00000112",
+        "name": "MSRPC_STATE_VIOLATION",
+        "meaning": "微软远程过程调用（MSRPC）状态机进入了非法状态。MSRPC是Windows中用于进程间通信（IPC）的核心机制，许多系统服务都依赖它。好比电话交换机的程控软件出现逻辑错误，导致通话无法正常建立。技术原因包括：恶意软件攻击RPC接口、系统文件损坏、或防火墙错误地阻断了RPC通信。",
+        "solution": "运行Windows Update安装最新安全补丁，微软经常修复RPC漏洞。全盘扫描病毒，特别是针对RPC蠕虫（如Blaster）。检查Windows防火墙是否允许RPC通信（通常需要允许135/TCP端口）。运行 `sfc /scannow` 修复系统文件。在CMD中执行 `net start rpcss` 确保RPC服务正在运行。如果问题出现在域环境中，检查域控制器健康状态。"
+    },
+    {
+        "id": 65,
+        "code": "0x00000113",
+        "name": "VIDEO_DXGKRNL_FATAL_ERROR",
+        "meaning": "DirectX图形内核（dxgkrnl.sys）发生了致命错误，通常与显卡驱动和Windows图形堆栈之间的严重冲突有关。好比两个部门主管彻底吵翻，导致整个项目停摆。技术原因包括：显卡驱动返回了无效的回调、GPU硬件挂起且恢复失败、或图形适配器对象状态不一致。常见于显卡驱动Bug、显存损坏或GPU核心故障。",
+        "solution": "使用DDU在安全模式下彻底卸载显卡驱动，安装最新WHQL版本。如果问题出现在更新驱动后，回退到前一稳定版本。降低显卡核心和显存频率。运行DirectX诊断工具（dxdiag）检查DirectX功能是否正常。重新安装DirectX运行时库（从微软官网下载）。检查显卡硬件，如显存散热垫是否老化。如果显卡支持，切换到备用BIOS。"
+    },
+    {
+        "id": 66,
+        "code": "0x00000114",
+        "name": "VIDEO_DXGKRNL_NONFATAL_ERROR",
+        "meaning": "DirectX图形内核发生了非致命错误，表示图形子系统遇到了可恢复的问题但仍能继续运行。好比飞机遇到轻度湍流，乘客感到颠簸但飞行安全未受威胁。技术原因包括：显卡驱动返回了警告状态、GPU重置成功但留下了错误痕迹、或显存ECC纠正了单比特错误。此错误通常伴随图形异常（如闪屏、花屏）但系统可能不会立即蓝屏。",
+        "solution": "更新显卡驱动到最新版本。降低图形负载（如降低游戏画质、关闭光追）。检查显卡温度，清理灰尘。运行 `sfc /scannow` 修复系统文件。如果问题频繁出现，使用DDU重新安装驱动。检查Windows事件查看器（系统日志）中是否有来自dxgkrnl的警告事件，根据事件ID进一步排查。"
+    },
+    {
+        "id": 67,
+        "code": "0x00000115",
+        "name": "VIDEO_TDR_FAILURE",
+        "meaning": "显卡超时检测与恢复（TDR）机制失败，即系统尝试重置显卡但未成功。TDR是Windows用于应对显卡挂起的机制：当GPU超过2秒无响应时，系统会尝试重置图形驱动。如果重置过程本身失败（如驱动拒绝卸载、或硬件无法复位），则触发此蓝屏。好比心脏骤停病人电击除颤失败，病情进一步恶化。",
+        "solution": "使用DDU彻底卸载显卡驱动后安装最新版。在注册表中增加TDR超时时间：`HKLM\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers` 新建DWORD `TdrDelay` 设为8。降低显卡核心频率和显存频率。检查显卡供电线是否插紧，电源功率是否足够。运行FurMark测试显卡稳定性。如果显卡有双BIOS，切换到性能模式。若问题依旧，可能是显卡硬件故障（如GPU虚焊），需送修。"
+    },
+    {
+        "id": 68,
+        "code": "0x00000116",
+        "name": "VIDEO_TDR_TIMEOUT",
+        "meaning": "显卡TDR超时，即GPU在2秒内未完成渲染任务，系统触发了TDR机制但尚未失败。好比老师提问后学生超过2秒未回答，老师开始倒计时。技术上是由于GPU负载过重、驱动效率低下或硬件性能不足。常见于运行大型3D游戏或GPU计算任务时，尤其是显卡散热不良导致降频。",
+        "solution": "更新显卡驱动。降低游戏画质设置（尤其是抗锯齿、阴影、反射）。在注册表中将TdrDelay增加到8-10秒。检查显卡温度，清理灰尘并改善机箱风道。使用MSI Afterburner适当降低核心频率和显存频率。如果问题只在特定游戏中出现，尝试更新该游戏或降低分辨率。"
+    },
+    {
+        "id": 69,
+        "code": "0x00000117",
+        "name": "VIDEO_TDR_APPLICATION_BLOCKED",
+        "meaning": "某个应用程序阻塞了显卡TDR的恢复过程。当系统尝试重置显卡驱动时，该应用程序持有的GPU资源（如上下文、分配）阻止了驱动卸载，导致TDR失败。好比消防员要进入火场灭火，但门口有人堵着不让进。常见于使用CUDA/OpenCL的计算程序、或未正确响应WM_QUERYENDSESSION的游戏。",
+        "solution": "更新显卡驱动。关闭正在运行的GPU密集型应用程序（如挖矿软件、视频渲染、大型游戏）。在任务管理器中结束占用GPU较高的进程。如果问题出现在特定程序中，更新该程序或寻找替代品。增加TDR超时时间（TdrDelay=8）。检查是否有多个程序同时竞争GPU资源。"
+    },
+    {
+        "id": 70,
+        "code": "0x00000118",
+        "name": "VIDEO_DXGKRNL_LIVEDUMP",
+        "meaning": "DirectX图形内核生成了一个实时转储（Live Dump）文件，用于记录显卡驱动出错时的现场状态。这通常发生在TDR过程中或图形异常时，系统会收集诊断信息供开发者分析。好比飞机黑匣子在遭遇颠簸时自动记录数据。此错误本身不一定导致蓝屏，但伴随的画面冻结或闪烁表明图形子系统存在问题。",
+        "solution": "收集生成的.dmp文件（位于C:\\Windows\\LiveKernelReports），可发送给显卡厂商分析。更新显卡驱动到最新版本。如果频繁出现，使用DDU重新安装驱动。检查显卡温度，运行显存测试。降低图形负载。如果问题指向特定应用，更新该应用。"
+    },
+    {
+        "id": 71,
+        "code": "0x00000119",
+        "name": "VIDEO_DXGKRNL_TIMEOUT",
+        "meaning": "DirectX图形内核操作超时，与TDR超时类似但更侧重于内核模式的操作。显卡驱动在处理某个图形内核请求时花费了太长时间，超过了系统容忍的阈值。好比网购时商家发货太慢，买家取消了订单。技术原因包括：驱动死锁、GPU命令缓冲区溢出、或硬件DMA传输卡住。",
+        "solution": "更新显卡驱动。降低图形负载。在注册表中增加TdrDelay。检查显卡供电是否充足。运行GPU-Z监控GPU负载和温度，查看是否存在异常降频。如果使用多显卡（SLI/CF），暂时禁用多卡互联。"
+    },
+    {
+        "id": 72,
+        "code": "0x0000011A",
+        "name": "VIDEO_DXGKRNL_DEADLOCK",
+        "meaning": "DirectX图形内核检测到死锁，即两个或多个线程互相等待对方释放资源，导致所有线程都无法继续。好比两个人面对面走进一条窄巷，谁也不肯让路，结果都卡在那里。技术上是由于显卡驱动中的同步原语使用不当，常见于多GPU配置或复杂的图形管线调度。",
+        "solution": "如果你使用多张显卡（SLI/CrossFire），暂时禁用多卡互联，只用单卡测试。更新显卡驱动。关闭涉及GPU协同工作的应用。降低图形复杂度。如果问题出现在虚拟化环境中，更新GPU直通驱动。"
+    },
+    {
+        "id": 73,
+        "code": "0x0000011B",
+        "name": "VIDEO_DXGKRNL_CONTEXT_CORRUPTION",
+        "meaning": "DirectX图形内核的上下文（Context）对象被破坏。上下文是GPU执行状态的环境，包含命令缓冲区、资源绑定等信息。好比画家的画布被撕破，后续的绘画无法进行。技术原因包括：显存错误导致上下文数据损坏、驱动Bug错误地修改了上下文、或GPU硬件故障。",
+        "solution": "更新显卡驱动。运行显存测试工具检查显存健康。降低显存频率。如果超频，恢复默认。检查显卡温度。使用DDU重新安装驱动。如果问题频繁出现，可能是显存硬件故障，需更换显卡。"
+    },
+    {
+        "id": 74,
+        "code": "0x0000011C",
+        "name": "VIDEO_DXGKRNL_API_VIOLATION",
+        "meaning": "DirectX图形内核的API调用违反了规范，即某个驱动程序或应用程序以错误的方式调用了图形内核接口。好比用螺丝刀去撬钉子——工具用错了地方。技术原因包括：用户模式驱动传递了无效参数、内核模式驱动错误地调用了DDI函数、或应用程序使用了过时的DirectX API。",
+        "solution": "更新显卡驱动。更新引发问题的应用程序或游戏到最新版本。重新安装DirectX运行时。如果问题出现在特定程序中，尝试以兼容模式运行。运行dxdiag检查DirectX功能。"
+    },
+    {
+        "id": 75,
+        "code": "0x0000011D",
+        "name": "VIDEO_DXGKRNL_EVENT_TIMEOUT",
+        "meaning": "DirectX图形内核等待某个事件（如GPU同步对象）超时。显卡驱动在处理某个同步事件时没有在规定时间内发出信号，导致等待线程饿死。好比约会时一方迟到太久，另一方直接离开。技术原因包括：GPU挂起、驱动调度Bug、或硬件中断丢失。",
+        "solution": "更新显卡驱动。降低图形负载。增加TdrDelay。检查显卡温度。运行GPU-Z查看GPU负载是否异常。如果问题出现在使用GPU计算的场景，减少并行任务数量。"
+    },
+    {
+        "id": 76,
+        "code": "0x0000011E",
+        "name": "VIDEO_DXGKRNL_INVALID_PTR",
+        "meaning": "DirectX图形内核遇到了无效的指针引用，即驱动或内核代码试图访问一个已释放或未初始化的内存地址。好比拿着一个错误的地址导航，永远找不到目的地。技术原因包括：驱动中的Use-After-Free漏洞、内存池损坏、或显存映射错误。",
+        "solution": "更新显卡驱动。运行内存诊断工具检查系统内存。使用Driver Verifier的“特殊池”选项定位问题驱动。如果超频，恢复默认。运行 `sfc /scannow` 修复系统文件。"
+    },
+    {
+        "id": 77,
+        "code": "0x0000011F",
+        "name": "VIDEO_DXGKRNL_INVALID_OBJECT",
+        "meaning": "DirectX图形内核引用了无效的对象句柄。对象句柄是内核对象的标识符，如果驱动传递了一个伪造的或已关闭的句柄，系统会拒绝操作。好比用假身份证去银行办理业务。技术原因包括：驱动中对象引用计数错误、或用户模式驱动传递了损坏的句柄。",
+        "solution": "更新显卡驱动。更新引发问题的应用程序。运行 `sfc /scannow`。如果问题出现在特定游戏中，验证游戏文件完整性。"
+    },
+    {
+        "id": 78,
+        "code": "0x00000120",
+        "name": "VIDEO_DXGKRNL_INVALID_ARGUMENT",
+        "meaning": "DirectX图形内核收到了无效的参数。驱动或应用程序在调用图形内核函数时传递了超出范围或不合法的参数。好比让厨师用砖头做饭——食材不对。技术原因包括：用户模式驱动Bug、应用程序DirectX调用错误、或显卡驱动版本不匹配。",
+        "solution": "更新显卡驱动。更新引发问题的应用程序或游戏。重新安装DirectX。如果问题出现在特定程序中，检查其是否支持当前操作系统版本。"
+    },
+    {
+        "id": 79,
+        "code": "0x00000121",
+        "name": "DRIVER_VIOLATION",
+        "meaning": "驱动程序违反了Windows驱动程序模型的通用规则，但未归类到特定错误码。好比司机闯红灯被交警拦下，但具体违章类型未明确。技术原因包括：驱动在错误的IRQL下调用了分页函数、内存访问违规、或同步错误。通常由Driver Verifier触发。",
+        "solution": "使用Driver Verifier定位违规驱动：`verifier /standard /all` 后重启。根据蓝屏信息中的驱动名称更新或卸载该驱动。运行 `sfc /scannow`。系统还原到正常状态。"
+    },
+    {
+        "id": 80,
+        "code": "0x00000122",
+        "name": "WHEA_INTERNAL_ERROR",
+        "meaning": "Windows硬件错误架构（WHEA）内部组件出现了错误。WHEA负责收集、记录和报告硬件错误（如CPU Machine Check、PCIe错误）。它自己出问题了，说明硬件错误处理机制本身可能受到了影响。好比火灾报警器自身的电路故障，导致无法正常报警。技术原因包括：WHEA驱动程序（pshed.dll）损坏、ACPI固件提供了错误的错误源描述、或硬件错误风暴压垮了WHEA。",
+        "solution": "更新BIOS/UEFI固件到最新版本。运行 `sfc /scannow` 和 `DISM` 修复系统文件。检查CPU和内存稳定性（运行Prime95和MemTest86）。检查事件查看器（Windows日志→系统）中是否有WHEA-Logger警告，根据其中记录的硬件错误类型进一步排查。如果问题指向特定硬件（如PCIe设备），更新其驱动或固件。"
+    },
+    {
+        "id": 81,
+        "code": "0x00000123",
+        "name": "WHEA_UNCORRECTABLE_ERROR",
+        "meaning": "WHEA报告了一个无法纠正的硬件错误，意味着硬件发生了不可恢复的物理故障。好比心电图显示一条直线——情况危急。技术原因包括：CPU内部缓存错误（L1/L2/L3）、内存ECC校验失败且无法纠正、或PCIe总线致命错误。此错误几乎总是由硬件缺陷引起，软件无能为力。",
+        "solution": "检查CPU是否过热或超频过度，恢复默认频率和电压。运行MemTest86完整测试内存（至少4小时）。更新BIOS到最新版本。检查电源输出稳定性，用替换法测试。如果错误信息中包含“Cache Hierarchy Error”，可能是CPU内部缓存损坏，需更换CPU。如果包含“Bus/Interconnect Error”，可能是主板或CPU的互联线路故障。"
+    },
+    {
+        "id": 82,
+        "code": "0x00000124",
+        "name": "WHEA_UNCORRECTABLE_ERROR",
+        "meaning": "与0x123相同错误代码，但通常特指CPU Machine Check Exception（MCE）中的特定错误类型。例如，L2缓存错误、TLB错误或微架构结构错误。技术原因包括：CPU超频/降压过度、散热不良导致热失控、或CPU内部物理缺陷。此错误在超频玩家中极为常见。",
+        "solution": "立即恢复CPU到默认频率、电压和内存时序。检查CPU散热器安装，清理灰尘并重新涂抹硅脂。运行Prime95 Small FFTs测试CPU稳定性，监控温度（不应超过85°C）。如果问题只在特定负载下出现，尝试增加CPU核心电压（Offset +0.02V）。更新BIOS。如果所有尝试无效，可能是CPU内部缺陷，需联系售后更换。"
+    },
+    {
+        "id": 83,
+        "code": "0x00000125",
+        "name": "WHEA_UNCORRECTABLE_ERROR",
+        "meaning": "WHEA无法纠正的错误，特指与内存控制器或内存通道相关的错误。例如，内存控制器发出的读请求未能得到响应、或内存通道上的CRC校验失败。好比内存与CPU之间的桥梁出现了裂缝。技术原因包括：内存条物理损坏、内存插槽接触不良、CPU内存控制器缺陷、或内存超频不稳定。",
+        "solution": "运行MemTest86逐条测试内存，找出故障内存条。清洁内存条金手指并重新插紧。如果使用多条内存，逐条单插测试。在BIOS中恢复内存到JEDEC标准频率（关闭XMP/DOCP）。如果问题指向特定内存插槽，更换插槽测试。更新BIOS。若仍不行，可能是CPU内存控制器故障，需更换CPU。"
+    },
+    {
+        "id": 84,
+        "code": "0x00000126",
+        "name": "WHEA_UNCORRECTABLE_ERROR",
+        "meaning": "WHEA无法纠正的错误，特指与PCIe总线相关的错误。例如，PCIe设备发送了poisoned TLP（事务层包）、或链路训练失败。好比高速公路上的货车装载了危险品且未申报。技术原因包括：PCIe设备接触不良、PCIe插槽损坏、或设备固件Bug。常见于显卡、NVMe SSD或PCIe转接卡。",
+        "solution": "关机后重新插拔所有PCIe设备，确保完全插入。检查PCIe插槽内是否有灰尘。在BIOS中将PCIe速率从Auto改为Gen3或Gen2。更新PCIe设备的固件和驱动。如果问题指向特定设备，尝试更换PCIe插槽。更新主板BIOS。运行 `chkdsk` 检查NVMe SSD健康度。"
+    },
+    {
+        "id": 85,
+        "code": "0x00000127",
+        "name": "PAGE_NOT_ZERO",
+        "meaning": "系统分配了一个物理内存页面，但该页面没有被清零（Zeroed）就直接交给了请求者。Windows内存管理器维护着一个清零页面列表，当分配页面时，应从未清零页面中取用。如果取到了非零页面，可能导致数据泄露或安全漏洞。好比酒店给客人安排了未打扫的房间，里面还残留着前任客人的物品。技术原因包括：内存硬件故障导致清零操作失败、或内存管理器Bug。",
+        "solution": "运行Windows内存诊断工具（mdsched.exe）进行扩展测试。如果发现问题，更换内存条。更新主板BIOS。如果系统启用了内存超额分配（Overcommit），尝试关闭。运行 `sfc /scannow` 修复系统文件。如果问题频繁出现，可能是内存硬件故障，需更换。"
+    },
+    {
+        "id": 86,
+        "code": "0x00000128",
+        "name": "WORKER_THREAD_RETURNED_AT_BAD_IRQL",
+        "meaning": "一个工作线程（Worker Thread）在错误的IRQL（中断请求级别）下返回了结果。工作线程通常运行在PASSIVE_LEVEL，但返回时却处于更高的级别（如DISPATCH_LEVEL）。好比一名士兵在执行完巡逻任务后，没有按规定交还武器就直接回家了。技术上是由于驱动程序在工作项回调中改变了IRQL但未恢复，或直接调用了KeLowerIrql错误。常见于存储或网络驱动的回调函数。",
+        "solution": "更新所有驱动程序，尤其是存储和网络驱动。使用Driver Verifier的“IRQL检查”选项：`verifier /flags 0x209BB /all`。运行 `sfc /scannow` 修复系统文件。如果问题指向特定驱动，更新或卸载该驱动。检查近期Windows更新，安装最新累积补丁。"
+    },
+    {
+        "id": 87,
+        "code": "0x00000129",
+        "name": "FREEZE",
+        "meaning": "系统检测到不可恢复的冻结状态，通常是由于硬件或驱动导致的完全死锁。好比整个城市突然停电，所有活动停止。技术原因包括：CPU内部错误、电源管理故障、或严重的驱动死锁。此错误较少见，通常与硬件问题相关。",
+        "solution": "检查CPU散热和电源稳定性。更新BIOS和所有驱动程序。运行MemTest86测试内存。如果问题在特定负载下出现，检查是否超频。使用Windows内存诊断工具。如果问题持续，可能是主板或CPU故障，需替换测试。"
+    },
+    {
+        "id": 88,
+        "code": "0x0000012A",
+        "name": "INVALID_ADDRESS",
+        "meaning": "内核模式代码引用了无效的内存地址，该地址既不在用户空间也不在内核空间的有效范围内。好比导航系统给出了一个根本不存在的街道号码。技术原因包括：驱动程序中的指针计算错误、或内存描述符列表（MDL）损坏。常见于显卡驱动或网络驱动。",
+        "solution": "更新所有驱动程序，尤其是显卡和网卡驱动。运行 `sfc /scannow` 和 `DISM` 修复系统文件。使用Driver Verifier定位问题驱动。运行内存诊断工具检查硬件。"
+    },
+    {
+        "id": 89,
+        "code": "0x0000012B",
+        "name": "INVALID_PROCESS_ATTACH_ATTEMPT",
+        "meaning": "一个线程试图附加到一个进程，但操作非法。例如，在错误的阶段或对错误的进程执行了附加。好比一个人想加入一个已经满员的微信群，但群主拒绝了。技术原因包括：驱动在错误的上下文中调用了PsAttachToProcess，或进程已终止。",
+        "solution": "更新所有驱动程序。运行 `sfc /scannow`。使用Driver Verifier检测。如果问题出现在特定软件中，更新该软件。"
+    },
+    {
+        "id": 90,
+        "code": "0x0000012C",
+        "name": "EXECUTABLE_MEMORY_IMAGE_CORRUPT",
+        "meaning": "可执行内存映像（如DLL或EXE的代码段）在加载后被检测到损坏。好比一本书的正文页面被撕掉了几页，读者无法理解故事。技术原因包括：磁盘坏道导致文件读取错误、内存故障导致代码在运行时被篡改、或恶意软件修改了代码。",
+        "solution": "运行 `sfc /scannow` 和 `DISM` 修复系统文件。运行 `chkdsk c: /f` 检查磁盘。全盘扫描病毒。如果问题指向特定程序，重新安装该程序。运行MemTest86检查内存。"
+    },
+    {
+        "id": 91,
+        "code": "0x0000012D",
+        "name": "DFS_FILE_SYSTEM",
+        "meaning": "分布式文件系统（DFS）驱动程序报告了错误。DFS用于跨多台服务器共享文件命名空间。好比一个全球图书馆联盟的目录系统出现了故障。技术原因包括：网络连接问题、DFS根目标不可达、或DFS缓存损坏。常见于企业网络环境。",
+        "solution": "检查网络连接和DNS解析。确保DFS根服务器正常运行。运行 `dfsutil /pktinfo` 查看缓存。刷新DFS缓存：`dfsutil /purgeMupCache`。更新网卡驱动。检查防火墙是否阻止了DFS通信（需开放445/TCP）。"
+    },
+    {
+        "id": 92,
+        "code": "0x0000012E",
+        "name": "DFS_FILE_SYSTEM",
+        "meaning": "与0x12D相同，但可能涉及不同的DFS子组件。技术原因和解决方案类似。",
+        "solution": "参照0x12D的解决方案。重点检查网络连通性和DFS服务状态。"
+    },
+    {
+        "id": 93,
+        "code": "0x0000012F",
+        "name": "DFS_FILE_SYSTEM",
+        "meaning": "DFS文件系统驱动再次检测到错误，可能涉及DFS命名空间引用计数或路径解析问题。",
+        "solution": "参照0x12D的解决方案。使用 `dfsdiag /testdcs` 测试域控制器连通性。"
+    },
+    {
+        "id": 94,
+        "code": "0x00000130",
+        "name": "WIN32K_CRITICAL_FAILURE",
+        "meaning": "Windows图形子系统（win32k.sys）发生了严重故障。win32k.sys负责窗口管理、绘图和输入处理。好比剧院的大幕控制系统崩溃，所有演出无法进行。技术原因包括：显卡驱动Bug、系统文件损坏、或内存错误。",
+        "solution": "更新显卡驱动。运行 `sfc /scannow` 和 `DISM`。检查近期Windows更新。如果问题出现在特定应用程序中，更新该程序。运行内存诊断。"
+    },
+    {
+        "id": 95,
+        "code": "0x00000131",
+        "name": "WIN32K_CRITICAL_FAILURE",
+        "meaning": "与0x130类似，但可能涉及不同的win32k组件。",
+        "solution": "参照0x130的解决方案。"
+    },
+    {
+        "id": 96,
+        "code": "0x00000132",
+        "name": "WIN32K_CRITICAL_FAILURE",
+        "meaning": "win32k.sys再次检测到关键错误，可能与桌面窗口管理器（DWM）交互失败有关。",
+        "solution": "参照0x130的解决方案。重启DWM服务：`net stop uxsms && net start uxsms`。"
+    },
+    {
+        "id": 97,
+        "code": "0x00000133",
+        "name": "DPC_WATCHDOG_VIOLATION",
+        "meaning": "延迟过程调用（DPC）看门狗超时，即某个DPC例程执行时间过长（超过系统阈值）。好比消防队的出警电话占线太久，导致紧急情况无法及时处理。技术原因包括：存储驱动（尤其是NVMe）在处理IO时耗时过长、或显卡驱动在DPC中执行了复杂操作。常见于SSD固件Bug或驱动缺陷。",
+        "solution": "更新存储驱动（特别是NVMe驱动）和主板芯片组驱动。更新SSD固件。在BIOS中禁用CPU C-State节能功能。运行 `chkdsk` 检查磁盘。如果问题指向特定驱动，更新或卸载。尝试禁用快速启动。"
+    },
+    {
+        "id": 98,
+        "code": "0x00000134",
+        "name": "DPC_WATCHDOG_VIOLATION",
+        "meaning": "与0x133类似，但可能涉及不同的DPC来源。",
+        "solution": "参照0x133的解决方案。重点关注存储和网络驱动。"
+    },
+    {
+        "id": 99,
+        "code": "0x00000135",
+        "name": "DPC_WATCHDOG_VIOLATION",
+        "meaning": "DPC看门狗违规，可能由USB控制器驱动或音频驱动引起。",
+        "solution": "更新USB和音频驱动。在设备管理器中禁用USB选择性暂停。"
+    },
+    {
+        "id": 100,
+        "code": "0x00000136",
+        "name": "DPC_WATCHDOG_VIOLATION",
+        "meaning": "DPC看门狗违规，可能与显卡驱动或无线网卡驱动有关。",
+        "solution": "更新显卡和无线网卡驱动。降低图形负载。"
+    },
+    {
+        "id": 101,
+        "code": "0x00000137",
+        "name": "DPC_WATCHDOG_VIOLATION",
+        "meaning": "DPC看门狗违规，常见于某些版本的Intel快速存储技术（RST）驱动。",
+        "solution": "更新或回滚Intel RST驱动。尝试使用微软默认的storahci驱动。"
+    },
+    {
+        "id": 102,
+        "code": "0x00000138",
+        "name": "DPC_WATCHDOG_VIOLATION",
+        "meaning": "DPC看门狗违规，可能由蓝牙驱动或指纹识别驱动引起。",
+        "solution": "更新蓝牙和生物识别驱动。在设备管理器中禁用蓝牙适配器测试。"
+    },
+    {
+        "id": 103,
+        "code": "0x00000139",
+        "name": "DPC_WATCHDOG_VIOLATION",
+        "meaning": "DPC看门狗违规，与系统固件（BIOS）交互有关。",
+        "solution": "更新BIOS到最新版本。恢复BIOS默认设置。"
+    },
+    {
+        "id": 104,
+        "code": "0x0000013A",
+        "name": "DPC_WATCHDOG_VIOLATION",
+        "meaning": "DPC看门狗违规，可能由第三方杀毒软件的过滤驱动引起。",
+        "solution": "暂时禁用或卸载第三方杀毒软件。使用Windows Defender。"
+    },
+    {
+        "id": 105,
+        "code": "0x0000013B",
+        "name": "DPC_WATCHDOG_VIOLATION",
+        "meaning": "DPC看门狗违规，与Windows更新或系统服务有关。",
+        "solution": "运行Windows Update安装最新补丁。运行 `sfc /scannow` 和 `DISM`。检查系统服务状态。"
+    }
+]
