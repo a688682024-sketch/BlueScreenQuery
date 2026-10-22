@@ -1,0 +1,12 @@
+{
+  "_说明": "快捷键配置。用 Qt 键序列写法，例如 Ctrl+K、Ctrl+Shift+F、Alt+1、F5。把值改成空字符串 \"\" 即可禁用该快捷键。写错只会让那一条失效，不会影响程序启动。",
+
+  "focus_search": "Ctrl+K",
+  "copy": "Ctrl+C",
+  "favorite": "Ctrl+D",
+  "settings": "Ctrl+,",
+  "filter_all": "Ctrl+1",
+  "filter_favorite": "Ctrl+2",
+  "filter_recent": "Ctrl+3",
+  "escape": "Escape"
+}
